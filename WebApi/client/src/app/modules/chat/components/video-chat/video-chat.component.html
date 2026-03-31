@@ -1,0 +1,50 @@
+<div class="relative h-full w-full bg-slate-900 overflow-hidden flex flex-col">
+  
+  <video
+    class="w-full h-full object-cover"
+    #remoteVideo
+    autoplay
+    playsInline
+  ></video>
+
+  <video
+    class="w-32 h-48 absolute right-5 top-4 object-cover border-gray-500 border-2 rounded-lg shadow-lg bg-black"
+    #localVideo
+    autoplay
+    playsInline
+    [muted]="true" 
+  ></video>
+
+  <div class="absolute bottom-10 left-0 right-0 z-50 flex justify-center space-x-4 p-4">
+    
+    @if (signalRService.incomingCall) {
+        <div class="flex flex-col items-center gap-2 animate-bounce">
+            <span class="text-white font-bold bg-black/50 px-2 rounded">Incoming Call...</span>
+            <div class="flex gap-4">
+                <button
+                class="bg-green-600 hover:bg-green-700 shadow-xl text-white p-4 rounded-full transition-all transform hover:scale-110"
+                (click)="acceptCall()"
+                >
+                <mat-icon class="scale-150">call</mat-icon>
+                </button>
+                <button
+                class="bg-red-600 hover:bg-red-700 shadow-xl text-white p-4 rounded-full transition-all transform hover:scale-110"
+                (click)="declineCall()"
+                >
+                <mat-icon class="scale-150">call_end</mat-icon>
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (!signalRService.incomingCall) {
+      <button
+        class="bg-red-600 hover:bg-red-700 shadow-xl text-white font-bold py-3 px-6 rounded-full flex items-center gap-2"
+        (click)="endCall()"
+      >
+        <mat-icon>call_end</mat-icon>
+        End Call
+      </button>
+    }
+  </div>
+</div>
