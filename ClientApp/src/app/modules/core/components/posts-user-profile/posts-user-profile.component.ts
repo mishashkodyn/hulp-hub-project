@@ -87,16 +87,36 @@ export class PostsUserProfileComponent implements OnInit {
     const files: FileList = event.target.files;
     if (files) {
       Array.from(files).forEach((file) => {
-        if (file.type.match(/image\/*/) && this.selectedFiles.length < 4) {
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        const isHeicOrRaw = file.name.match(/\.(heic|heif|raw|dng|cr2|nef)$/i) !== null;
+
+        if ((isImage || isVideo || isHeicOrRaw) && this.selectedFiles.length < 4) {
           this.selectedFiles.push(file);
 
-          const reader = new FileReader();
-          reader.onload = (e: any) => this.previewUrls.push(e.target.result);
-          reader.readAsDataURL(file);
+          if (isVideo) {
+             const videoUrl = URL.createObjectURL(file);
+             this.previewUrls.push(videoUrl);
+          } 
+          else if (isHeicOrRaw || (!isImage && !isVideo)) {
+             this.previewUrls.push('UNSUPPORTED_PREVIEW_FORMAT');
+          } 
+          else {
+            const reader = new FileReader();
+            reader.onload = (e: any) => this.previewUrls.push(e.target.result);
+            reader.readAsDataURL(file);
+          }
         }
       });
     }
     event.target.value = '';
+  }
+
+  isPreviewVideo(index: number): boolean {
+    if (this.selectedFiles[index]) {
+      return this.selectedFiles[index].type.startsWith('video/');
+    }
+    return false;
   }
 
   removePreview(index: number): void {
