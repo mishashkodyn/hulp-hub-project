@@ -15,7 +15,6 @@ import { FilesService } from './files.service';
 export class VideoChatService {
   private hubUrl = `${environment.hubUrl}/video`;
   public hubConnection: HubConnection | null = null;
-  private authService = inject(AuthService);
 
   public offerReceived = new Subject<{
     senderId: string;
@@ -38,13 +37,11 @@ export class VideoChatService {
   isConnected = signal<boolean>(false);
 
   async startConnection() {
-    console.log('VIDEOCHAT CONNECTION');
-
     if (this.hubConnection?.state === HubConnectionState.Connected) return;
 
     this.hubConnection = new HubConnectionBuilder()
       .withUrl(this.hubUrl, {
-        accessTokenFactory: () => this.authService.getAccessToken!,
+        accessTokenFactory: () => localStorage.getItem('token')!,
       })
       .withAutomaticReconnect()
       .build();
