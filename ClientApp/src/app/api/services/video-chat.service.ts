@@ -1,83 +1,122 @@
-  import { inject, Injectable } from '@angular/core';
-  import { environment } from '../../../environments/environment';
-  import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
-  import { AuthService } from './auth.service';
-  import { BehaviorSubject, Subject } from 'rxjs';
+import { inject, Injectable, signal } from '@angular/core';
+import { environment } from '../../../environments/environment';
+import {
+  HubConnection,
+  HubConnectionBuilder,
+  HubConnectionState,
+} from '@microsoft/signalr';
+import { AuthService } from './auth.service';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { FilesService } from './files.service';
 
-  @Injectable({
-    providedIn: 'root',
-  })
-  export class VideoChatService {
-    private hubUrl = `${environment.hubUrl}/video`;
-    public hubConnection: HubConnection | null = null;
-    private authService = inject(AuthService);
-    private filesService = inject(FilesService)
+@Injectable({
+  providedIn: 'root',
+})
+export class VideoChatService {
+  private hubUrl = `${environment.hubUrl}/video`;
+  public hubConnection: HubConnection | null = null;
+  private authService = inject(AuthService);
 
-    public offerReceived = new Subject<{ senderId: string; offer: RTCSessionDescriptionInit }>();
-    public answerReceived = new Subject<{ senderId: string; answer: RTCSessionDescriptionInit }>();
-    public iceCandidateReceived = new Subject<{ senderId: string; candidate: RTCIceCandidateInit }>();
-    public callEnded = new Subject<void>();
+  public offerReceived = new Subject<{
+    senderId: string;
+    offer: RTCSessionDescriptionInit;
+  }>();
+  public answerReceived = new Subject<{
+    senderId: string;
+    answer: RTCSessionDescriptionInit;
+  }>();
+  public iceCandidateReceived = new Subject<{
+    senderId: string;
+    candidate: RTCIceCandidateInit;
+  }>();
+  public callEnded = new Subject<void>();
 
-    public incomingCall = false;
-    public isCallActive = false;
-    public remoteUserId: string | null = null;
+  public incomingCall = false;
+  public isCallActive = false;
+  public remoteUserId: string | null = null;
 
-    async startConnection() {
-      console.log("VIDEOCHAT CONNECTION");
-      
-      if (this.hubConnection?.state === HubConnectionState.Connected) return;
+  isConnected = signal<boolean>(false);
 
-      this.hubConnection = new HubConnectionBuilder()
-        .withUrl(this.hubUrl, {
-          accessTokenFactory: () => this.authService.getAccessToken!,
-        })
-        .withAutomaticReconnect()
-        .build();
+  async startConnection() {
+    console.log('VIDEOCHAT CONNECTION');
 
-      this.hubConnection.on('ReceiveOffer', (senderId, offer) => {
-        const parsedOffer = typeof offer === 'string' ? JSON.parse(offer) : offer;
-        this.offerReceived.next({ senderId, offer: parsedOffer });
-      });
+    if (this.hubConnection?.state === HubConnectionState.Connected) return;
 
-      this.hubConnection.on('ReceiveAnswer', (senderId, answer) => {
-        const parsedAnswer = typeof answer === 'string' ? JSON.parse(answer) : answer;
-        this.answerReceived.next({ senderId, answer: parsedAnswer });
-      });
+    this.hubConnection = new HubConnectionBuilder()
+      .withUrl(this.hubUrl, {
+        accessTokenFactory: () => this.authService.getAccessToken!,
+      })
+      .withAutomaticReconnect()
+      .build();
 
-      this.hubConnection.on('ReceiveIceCandidate', (senderId, candidate) => {
-        const parsedCandidate = typeof candidate === 'string' ? JSON.parse(candidate) : candidate;
-        this.iceCandidateReceived.next({ senderId, candidate: parsedCandidate });
-      });
+    this.hubConnection.on('ReceiveOffer', (senderId, offer) => {
+      const parsedOffer = typeof offer === 'string' ? JSON.parse(offer) : offer;
+      this.offerReceived.next({ senderId, offer: parsedOffer });
+    });
 
-      this.hubConnection.on('CallEnded', () => {
-        this.callEnded.next();
-      });
+    this.hubConnection.on('ReceiveAnswer', (senderId, answer) => {
+      const parsedAnswer =
+        typeof answer === 'string' ? JSON.parse(answer) : answer;
+      this.answerReceived.next({ senderId, answer: parsedAnswer });
+    });
 
-      await this.hubConnection.start();
-    }
+    this.hubConnection.on('ReceiveIceCandidate', (senderId, candidate) => {
+      const parsedCandidate =
+        typeof candidate === 'string' ? JSON.parse(candidate) : candidate;
+      this.iceCandidateReceived.next({ senderId, candidate: parsedCandidate });
+    });
 
-    async sendOffer(receiverId: string, offer: RTCSessionDescriptionInit) {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        await this.hubConnection.invoke("SendOffer", receiverId, JSON.stringify(offer));
-      }
-    }
+    this.hubConnection.on('CallEnded', () => {
+      this.callEnded.next();
+    });
 
-    async sendAnswer(receiverId: string, answer: RTCSessionDescriptionInit) {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        await this.hubConnection.invoke("SendAnswer", receiverId, JSON.stringify(answer));
-      }
-    }
+    this.hubConnection
+      .start()
+      .then(() => this.isConnected.set(true))
+      .catch((error) =>
+        console.error('Video Chat Hub Connection Error: ', error),
+      );
+  }
 
-    async sendIceCandidate(receiverId: string, candidate: RTCIceCandidate) {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        await this.hubConnection.invoke("SendIceCandidate", receiverId, JSON.stringify(candidate));
-      }
-    }
-
-    async sendEndCall(receiverId: string) {
-      if (this.hubConnection?.state === HubConnectionState.Connected) {
-        await this.hubConnection.invoke("EndCall", receiverId);
-      }
+  stopConnection() {
+    if (this.hubConnection?.state === HubConnectionState.Connected) {
+      this.hubConnection.stop().then(() => this.isConnected.set(false));
     }
   }
+
+  async sendOffer(receiverId: string, offer: RTCSessionDescriptionInit) {
+    if (this.hubConnection?.state === HubConnectionState.Connected) {
+      await this.hubConnection.invoke(
+        'SendOffer',
+        receiverId,
+        JSON.stringify(offer),
+      );
+    }
+  }
+
+  async sendAnswer(receiverId: string, answer: RTCSessionDescriptionInit) {
+    if (this.hubConnection?.state === HubConnectionState.Connected) {
+      await this.hubConnection.invoke(
+        'SendAnswer',
+        receiverId,
+        JSON.stringify(answer),
+      );
+    }
+  }
+
+  async sendIceCandidate(receiverId: string, candidate: RTCIceCandidate) {
+    if (this.hubConnection?.state === HubConnectionState.Connected) {
+      await this.hubConnection.invoke(
+        'SendIceCandidate',
+        receiverId,
+        JSON.stringify(candidate),
+      );
+    }
+  }
+
+  async sendEndCall(receiverId: string) {
+    if (this.hubConnection?.state === HubConnectionState.Connected) {
+      await this.hubConnection.invoke('EndCall', receiverId);
+    }
+  }
+}

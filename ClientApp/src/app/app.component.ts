@@ -17,7 +17,7 @@ import { NotificationService } from './api/services/notification.service';
 export class AppComponent implements OnInit, OnDestroy {
   title = 'client';
 
-  public signalRService = inject(VideoChatService);
+  public videoChatService = inject(VideoChatService);
   public authService = inject(AuthService);
   public presenceService = inject(PresenceService);
   public chatService = inject(ChatService);
@@ -29,7 +29,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.authService.getAccessToken) {
       return;
     }
-    this.signalRService.startConnection().then(() => {
+    this.videoChatService.startConnection().then(() => {
       this.startOfferReceive();
     });
     this.presenceService.startConnection();
@@ -44,7 +44,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // 1. ВИПРАВЛЕННЯ ДЛЯ ВХІДНОГО ДЗВІНКА
   startOfferReceive() {
     this.sub.add(
-      this.signalRService.offerReceived.subscribe((data) => {
+      this.videoChatService.offerReceived.subscribe((data) => {
         if (data && data.senderId) {
           this.matDialog.open(VideoChatComponent, {
             width: '600px',

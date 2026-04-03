@@ -11,6 +11,7 @@ import { ChatService } from './chat.service';
 import { Router } from '@angular/router';
 import { CreatePsychologistApplicationDto } from '../models/psychologist-application.model';
 import { NotificationService } from './notification.service';
+import { VideoChatService } from './video-chat.service';
 
 @Injectable({
   providedIn: 'root',
@@ -22,6 +23,7 @@ export class AuthService {
   sidebarService = inject(SidebarService);
   httpClient = inject(HttpClient);
   presenceService = inject(PresenceService);
+  videoChatService = inject(VideoChatService);
   chatService = inject(ChatService);
   notificationService = inject(NotificationService);
   router = inject(Router);
@@ -91,6 +93,9 @@ export class AuthService {
       .pipe(
         tap((response) => {
           localStorage.setItem(this.token, response.data);
+          if (this.videoChatService.isConnected()) {
+            this.videoChatService.startConnection();
+          }
           if (!this.presenceService.isConnected()) {
             this.presenceService.startConnection();
           }
@@ -115,6 +120,9 @@ export class AuthService {
         tap((res) => {
           if (res.isSuccess) {
             localStorage.setItem('user', JSON.stringify(res.data));
+          }
+          if (this.videoChatService.isConnected()) {
+            this.videoChatService.startConnection();
           }
           if (!this.presenceService.isConnected()) {
             this.presenceService.startConnection();
@@ -145,6 +153,7 @@ export class AuthService {
     this.presenceService.stopConnection();
     this.chatService.stopConnection();
     this.chatService.stopConnection();
+    this.videoChatService.stopConnection();
     localStorage.removeItem(this.token);
     localStorage.removeItem('user');
     this.router.navigate(['/login']);

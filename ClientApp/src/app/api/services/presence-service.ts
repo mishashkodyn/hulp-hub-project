@@ -63,7 +63,6 @@ export class PresenceService {
   }
 
   stopConnection() {
-    console.log('PRESENCE STOP');
     if (this.hubConnection?.state === HubConnectionState.Connected) {
       this.hubConnection.stop().then(() => this.isConnected.set(false));
     }
