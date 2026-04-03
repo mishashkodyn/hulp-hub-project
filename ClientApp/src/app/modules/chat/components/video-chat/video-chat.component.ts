@@ -11,11 +11,12 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { VideoChatService } from '../../../../api/services/video-chat.service';
 import { MatIconModule } from '@angular/material/icon';
 import { Subscription } from 'rxjs';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-video-chat',
   standalone: true,
-  imports: [MatIconModule],
+  imports: [MatIconModule, CommonModule],
   templateUrl: './video-chat.component.html',
   styleUrl: './video-chat.component.scss',
 })
@@ -32,13 +33,21 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   protected signalRService = inject(VideoChatService);
   protected dialogRef = inject(MatDialogRef<VideoChatComponent>);
 
+  protected isFrontCamera: boolean = true;
+  protected hasMultipleCameras: boolean = false;
+  private videoDevices: MediaDeviceInfo[] = [];
+  private currentCameraIndex: number = 0;
+
+  protected isAudioMuted: boolean = false;
+  protected isVideoMuted: boolean = false;
+
   constructor(
     @Inject(MAT_DIALOG_DATA)
     public data: {
       isCaller: boolean;
       offer?: RTCSessionDescriptionInit;
       remoteUserId: string;
-    }
+    },
   ) {}
 
   async ngOnInit() {
@@ -48,7 +57,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     }
 
     this.signalRService.remoteUserId = this.data.remoteUserId;
-
+    await this.checkCameras();
     this.createPeerConnection();
     await this.startLocalStream();
     this.setupSignalListeners();
@@ -65,6 +74,48 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
   }
 
+  toggleAudio() {
+    if (this.localStream) {
+      this.isAudioMuted = !this.isAudioMuted;
+      this.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !this.isAudioMuted;
+      });
+    }
+  }
+
+  toggleVideo() {
+    if (this.localStream) {
+      this.isVideoMuted = !this.isVideoMuted;
+      this.localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !this.isVideoMuted;
+      });
+    }
+  }
+
+  async checkCameras() {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      this.videoDevices = devices.filter(device => device.kind === 'videoinput');
+      this.hasMultipleCameras = this.videoDevices.length > 1;
+    } catch (e) {
+      console.error('Camera check failed', e);
+    }
+  }
+
+  async switchCamera() {
+    if (!this.hasMultipleCameras) return;
+
+    this.currentCameraIndex = (this.currentCameraIndex + 1) % this.videoDevices.length;
+    const newDevice = this.videoDevices[this.currentCameraIndex];
+    
+    this.isFrontCamera = newDevice.label.toLowerCase().includes('front') || !this.isFrontCamera;
+
+    await this.startLocalStream(newDevice.deviceId);
+  }
+
+
+
   createPeerConnection() {
     this.peerConnection = new RTCPeerConnection({
       iceServers: [
@@ -77,7 +128,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       if (event.candidate && this.signalRService.remoteUserId) {
         this.signalRService.sendIceCandidate(
           this.signalRService.remoteUserId,
-          event.candidate
+          event.candidate,
         );
       }
     };
@@ -89,19 +140,38 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     };
   }
 
-  async startLocalStream() {
-    this.localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    if (this.localVideo) {
-      this.localVideo.nativeElement.srcObject = this.localStream;
-      this.localVideo.nativeElement.muted = true;
+  async startLocalStream(deviceId?: string) {
+    // Якщо стрім вже є (наприклад, при перемиканні камери), зупиняємо старий
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((track) => track.stop());
     }
 
-    this.localStream.getTracks().forEach((track) => {
-      this.peerConnection.addTrack(track, this.localStream!);
-    });
+    const constraints: MediaStreamConstraints = {
+      audio: true,
+      video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
+    };
+
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      if (this.localVideo) {
+        this.localVideo.nativeElement.srcObject = this.localStream;
+      }
+
+      if (this.peerConnection.signalingState !== 'closed') {
+        const videoTrack = this.localStream.getVideoTracks()[0];
+        const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(videoTrack);
+        } else {
+          this.localStream.getTracks().forEach((track) => {
+            this.peerConnection.addTrack(track, this.localStream!);
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error accessing media devices.', err);
+    }
   }
 
   setupSignalListeners() {
@@ -109,11 +179,11 @@ export class VideoChatComponent implements OnInit, OnDestroy {
       this.signalRService.answerReceived.subscribe(async (data) => {
         if (data && this.peerConnection.signalingState === 'have-local-offer') {
           await this.peerConnection.setRemoteDescription(
-            new RTCSessionDescription(data.answer)
+            new RTCSessionDescription(data.answer),
           );
           this.processPendingCandidates();
         }
-      })
+      }),
     );
 
     this.subscriptions.add(
@@ -121,13 +191,13 @@ export class VideoChatComponent implements OnInit, OnDestroy {
         if (data?.candidate) {
           await this.addIceCandidate(data.candidate);
         }
-      })
+      }),
     );
 
     this.subscriptions.add(
       this.signalRService.callEnded.subscribe(() => {
         this.closeDialogAndCleanup();
-      })
+      }),
     );
   }
 
@@ -138,7 +208,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     ) {
       try {
         await this.peerConnection.addIceCandidate(
-          new RTCIceCandidate(candidate)
+          new RTCIceCandidate(candidate),
         );
       } catch (e) {
         console.error('Error adding ICE:', e);
@@ -152,7 +222,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     for (const candidate of this.pendingIceCandidates) {
       try {
         await this.peerConnection.addIceCandidate(
-          new RTCIceCandidate(candidate)
+          new RTCIceCandidate(candidate),
         );
       } catch (e) {
         console.error('Error processing pending ICE:', e);
@@ -173,7 +243,7 @@ export class VideoChatComponent implements OnInit, OnDestroy {
 
   async handleOffer(offer: RTCSessionDescriptionInit) {
     await this.peerConnection.setRemoteDescription(
-      new RTCSessionDescription(offer)
+      new RTCSessionDescription(offer),
     );
     this.processPendingCandidates();
 

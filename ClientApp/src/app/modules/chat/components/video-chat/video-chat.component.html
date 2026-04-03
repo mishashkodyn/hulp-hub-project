@@ -1,50 +1,102 @@
-<div class="relative h-full w-full bg-slate-900 overflow-hidden flex flex-col">
+<div class="relative h-full w-full bg-gray-900 overflow-hidden flex flex-col font-sans">
   
   <video
-    class="w-full h-full object-cover"
+    class="w-full h-full object-cover bg-gray-900"
     #remoteVideo
     autoplay
     playsInline
   ></video>
 
-  <video
-    class="w-32 h-48 absolute right-5 top-4 object-cover border-gray-500 border-2 rounded-lg shadow-lg bg-black"
-    #localVideo
-    autoplay
-    playsInline
-    [muted]="true" 
-  ></video>
+  <div class="absolute right-4 top-4 md:right-8 md:top-8 w-28 h-40 md:w-56 md:h-40 rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-gray-800 z-40 transition-all">
+    
+    <video
+      [class.hidden]="isVideoMuted"
+      class="w-full h-full object-cover transition-transform duration-300"
+      [class.-scale-x-100]="isFrontCamera"
+      #localVideo
+      autoplay
+      playsInline
+      [muted]="true" 
+    ></video>
+    
+    @if (isVideoMuted) {
+      <div class="absolute inset-0 flex items-center justify-center bg-gray-800">
+        <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+          <mat-icon class="text-gray-400 text-2xl">person_off</mat-icon>
+        </div>
+      </div>
+    }
+  </div>
 
-  <div class="absolute bottom-10 left-0 right-0 z-50 flex justify-center space-x-4 p-4">
+  <div class="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-gray-900/90 to-transparent z-30 pointer-events-none"></div>
+
+  <div class="absolute bottom-8 left-0 right-0 z-50 flex flex-col items-center justify-end px-4 w-full">
     
     @if (signalRService.incomingCall) {
-        <div class="flex flex-col items-center gap-2 animate-bounce">
-            <span class="text-white font-bold bg-black/50 px-2 rounded">Incoming Call...</span>
-            <div class="flex gap-4">
-                <button
-                class="bg-green-600 hover:bg-green-700 shadow-xl text-white p-4 rounded-full transition-all transform hover:scale-110"
-                (click)="acceptCall()"
-                >
-                <mat-icon class="scale-150">call</mat-icon>
-                </button>
-                <button
-                class="bg-red-600 hover:bg-red-700 shadow-xl text-white p-4 rounded-full transition-all transform hover:scale-110"
-                (click)="declineCall()"
-                >
-                <mat-icon class="scale-150">call_end</mat-icon>
-                </button>
-            </div>
+      <div class="flex flex-col items-center gap-6 mb-4 animate-fade-in-up">
+        <div class="flex flex-col items-center gap-2">
+          <div class="w-20 h-20 rounded-full bg-gray-700/80 backdrop-blur-md mb-2 border border-white/20 shadow-lg flex items-center justify-center animate-pulse">
+            <mat-icon class="text-white text-4xl scale-110">ring_volume</mat-icon>
+          </div>
+          <span class="text-white text-2xl font-semibold tracking-tight">Incoming Call</span>
+          <span class="text-gray-300 text-sm font-medium">Someone needs help...</span>
         </div>
+        
+        <div class="flex gap-10 mt-2">
+          <button
+            class="w-16 h-16 bg-red-500 hover:bg-red-600 shadow-[0_8px_30px_rgba(239,68,68,0.5)] text-white rounded-full flex items-center justify-center transition-all transform hover:scale-105 cursor-pointer"
+            (click)="declineCall()"
+          >
+            <mat-icon class="scale-125">call_end</mat-icon>
+          </button>
+          
+          <button
+            class="w-16 h-16 bg-green-500 hover:bg-green-600 shadow-[0_8px_30px_rgba(34,197,94,0.5)] text-white rounded-full flex items-center justify-center transition-all transform hover:scale-105 cursor-pointer"
+            (click)="acceptCall()"
+          >
+            <mat-icon class="scale-125">call</mat-icon>
+          </button>
+        </div>
+      </div>
     }
 
     @if (!signalRService.incomingCall) {
-      <button
-        class="bg-red-600 hover:bg-red-700 shadow-xl text-white font-bold py-3 px-6 rounded-full flex items-center gap-2"
-        (click)="endCall()"
-      >
-        <mat-icon>call_end</mat-icon>
-        End Call
-      </button>
+      <div class="flex items-center gap-3 md:gap-5 bg-gray-800/80 backdrop-blur-xl px-6 py-4 rounded-full border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] animate-fade-in-up w-auto max-w-full overflow-x-auto custom-scroll">
+        
+        <button
+          (click)="toggleAudio()"
+          class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0"
+          [ngClass]="isAudioMuted ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-white/10 text-white hover:bg-white/20'"
+        >
+          <mat-icon class="scale-110">{{ isAudioMuted ? 'mic_off' : 'mic' }}</mat-icon>
+        </button>
+
+        <button
+          (click)="toggleVideo()"
+          class="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0"
+          [ngClass]="isVideoMuted ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-white/10 text-white hover:bg-white/20'"
+        >
+          <mat-icon class="scale-110">{{ isVideoMuted ? 'videocam_off' : 'videocam' }}</mat-icon>
+        </button>
+
+        @if (hasMultipleCameras) {
+          <button
+            class="w-12 h-12 md:w-14 md:h-14 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm shrink-0"
+            (click)="switchCamera()"
+          >
+            <mat-icon class="scale-110">flip_camera_ios</mat-icon>
+          </button>
+        }
+
+        <div class="w-px h-8 bg-white/10 mx-1 md:mx-2 shrink-0"></div>
+
+        <button
+          class="w-14 h-14 md:w-16 md:h-16 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(239,68,68,0.4)] cursor-pointer shrink-0"
+          (click)="endCall()"
+        >
+          <mat-icon class="scale-125">call_end</mat-icon>
+        </button>
+      </div>
     }
   </div>
 </div>

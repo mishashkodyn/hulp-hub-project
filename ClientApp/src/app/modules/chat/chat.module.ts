@@ -24,7 +24,7 @@ import { CdkAutofill } from "@angular/cdk/text-field";
     ChatBoxComponent,
     ChatRightSidebarComponent,
     ChatSidebarComponent,
-    ChatWindowComponent
+    ChatWindowComponent,
   ],
   imports: [
     CommonModule,

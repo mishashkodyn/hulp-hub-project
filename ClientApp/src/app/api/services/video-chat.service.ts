@@ -94,8 +94,9 @@ export class VideoChatService {
     this.offerReceived.pipe(untilDestroyed(this)).subscribe((data) => {
       if (data && data.senderId) {
         this.matDialog.open(VideoChatComponent, {
-          width: '600px',
-          height: '600px',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          panelClass: 'video-chat-dialog',
           disableClose: true,
           data: {
             isCaller: false,
