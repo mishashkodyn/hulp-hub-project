@@ -189,21 +189,11 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   setupSignalListeners() {
     this.subscriptions.add(
       this.signalRService.answerReceived.subscribe(async (data) => {
-        if (!data || !data.answer) return;
-
-        if (this.peerConnection.signalingState === 'have-local-offer') {
-          try {
-            await this.peerConnection.setRemoteDescription(
-              new RTCSessionDescription(data.answer),
-            );
-            await this.processPendingCandidates();
-          } catch (err) {
-            console.error('Error setting remote answer:', err);
-          }
-        } else {
-          console.warn(
-            `Received answer in unexpected state: ${this.peerConnection.signalingState}. Ignoring.`,
+        if (data && this.peerConnection.signalingState === 'have-local-offer') {
+          await this.peerConnection.setRemoteDescription(
+            new RTCSessionDescription(data.answer),
           );
+          this.processPendingCandidates();
         }
       }),
     );
