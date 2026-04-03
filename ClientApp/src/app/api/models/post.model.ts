@@ -23,6 +23,7 @@ export interface CommentResponseDto {
   createdAt: string;
   authorId: string;
   authorName: string;
+  authorAvatarUrl: string;
 }
 
 export interface CreateCommentDto {

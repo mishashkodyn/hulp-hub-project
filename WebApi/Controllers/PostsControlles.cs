@@ -158,6 +158,7 @@ namespace API.Controllers
                 CreatedAt = comment.CreatedAt,
                 AuthorId = userId,
                 AuthorName = user!.Name + " " + user.Surname,
+                AuthorAvatarUrl = user.ProfileImage
             };
 
             return Ok(Response<CommentResponseDto>.Success(responseDto));
@@ -181,6 +182,7 @@ namespace API.Controllers
                     CreatedAt = p.CreatedAt,
                     AuthorId = p.User.Id,
                     AuthorName = p.User.Name + " " + p.User.Surname,
+                    AuthorAvatarUrl = p.User.ProfileImage
                 })
                 .ToListAsync();
 

@@ -1,9 +1,10 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { UserProfileDto } from '../../../../api/models/user';
-import { PostResponseDto } from '../../../../api/models/post.model';
+import { CommentResponseDto, PostResponseDto } from '../../../../api/models/post.model';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { PostsService } from '../../../../api/services/posts.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { AuthService } from '../../../../api/services/auth.service';
 
 @Component({
   selector: 'app-posts-user-profile',
@@ -24,6 +25,13 @@ export class PostsUserProfileComponent implements OnInit {
   selectedFiles: File[] = [];
   previewUrls: string[] = [];
 
+  expandedComments = new Set<string>();
+  postComments: { [postId: string]: CommentResponseDto[] } = {};
+  loadingComments: { [postId: string]: boolean } = {};
+  commentInputs: { [postId: string]: string } = {};
+  commentPage: { [postId: string]: number } = {};
+  hasMoreComments: { [postId: string]: boolean } = {};
+
   @Input() isOwnProfile!: boolean;
   @Input() user!: UserProfileDto;
 
@@ -31,6 +39,7 @@ export class PostsUserProfileComponent implements OnInit {
     private fb: FormBuilder,
     private postsService: PostsService,
     private snackBar: MatSnackBar,
+    public authService: AuthService
   ) {
     this.postForm = this.fb.group({
       content: ['', [Validators.required, Validators.maxLength(2000)]],
@@ -129,6 +138,59 @@ export class PostsUserProfileComponent implements OnInit {
         post.likesCount += post.isLikedByMe ? 1 : -1;
         this.showError('Something went wrong');
       }
+    });
+  }
+
+  toggleComments(post: PostResponseDto): void {
+    if (this.expandedComments.has(post.id)) {
+      this.expandedComments.delete(post.id);
+    } else {
+      this.expandedComments.add(post.id);
+      if (!this.postComments[post.id]) {
+        this.loadComments(post.id);
+      }
+    }
+  }
+
+  loadComments(postId: string, loadMore = false): void {
+    if (!loadMore) {
+      this.loadingComments[postId] = true;
+      this.commentPage[postId] = 1;
+      this.postComments[postId] = [];
+    } else {
+      this.commentPage[postId]++;
+    }
+
+    this.postsService.getComments(postId, this.commentPage[postId], 10).subscribe({
+      next: (res) => {
+        this.postComments[postId] = loadMore 
+          ? [...this.postComments[postId], ...res.data] 
+          : res.data;
+        
+        this.hasMoreComments[postId] = res.data.length === 10;
+        this.loadingComments[postId] = false;
+      },
+      error: () => {
+        this.loadingComments[postId] = false;
+        this.showError('Failed to load comments');
+      }
+    });
+  }
+
+  submitComment(post: PostResponseDto): void {
+    const text = this.commentInputs[post.id]?.trim();
+    if (!text) return;
+
+    this.postsService.createComment(post.id, { text }).subscribe({
+      next: (res) => {
+        if (!this.postComments[post.id]) {
+          this.postComments[post.id] = [];
+        }
+        this.postComments[post.id].unshift(res.data);
+        post.commentsCount++;
+        this.commentInputs[post.id] = '';
+      },
+      error: () => this.showError('Failed to post comment')
     });
   }
 
