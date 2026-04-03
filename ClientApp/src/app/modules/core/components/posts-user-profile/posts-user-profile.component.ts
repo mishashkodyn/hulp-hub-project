@@ -207,4 +207,9 @@ export class PostsUserProfileComponent implements OnInit {
       panelClass: ['bg-red-600', 'text-white'],
     });
   }
+
+  isVideo(url: string): boolean {
+    if (!url) return false;
+    return url.match(/\.(mp4|webm|ogg|mov)$/i) !== null;
+  }
 }

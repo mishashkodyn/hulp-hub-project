@@ -151,19 +151,48 @@
           }
 
           @if (post.mediaUrls && post.mediaUrls.length > 0) {
-            <div
-              class="grid gap-1 mb-4 rounded-xl overflow-hidden"
-              [ngClass]="
-                post.mediaUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
-              "
-            >
-              @for (url of post.mediaUrls; track url) {
-                <img
-                  [src]="url"
-                  class="w-full h-64 object-cover hover:opacity-95 transition-opacity cursor-pointer"
-                />
-              }
-            </div>
+            
+            @if (post.mediaUrls.length === 1) {
+              <div class="mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex justify-center max-h-[500px]">
+                @if (isVideo(post.mediaUrls[0])) {
+                  <video 
+                    [src]="post.mediaUrls[0]" 
+                    controls 
+                    class="max-w-full max-h-[500px] object-contain outline-none"
+                  ></video>
+                } @else {
+                  <img 
+                    [src]="post.mediaUrls[0]" 
+                    class="max-w-full max-h-[500px] object-contain cursor-pointer transition-transform hover:scale-[1.01]" 
+                  />
+                }
+              </div>
+            } 
+            
+            @else {
+              <div class="mb-4 relative group">
+                <div class="flex gap-2 overflow-x-auto custom-scroll snap-x snap-mandatory pb-3 -mx-1 px-1">
+                  
+                  @for (url of post.mediaUrls; track url) {
+                    <div class="shrink-0 w-[85%] sm:w-[75%] snap-center overflow-hidden border border-gray-200 bg-gray-100 h-[300px] sm:h-[400px] relative shadow-sm">
+                      @if (isVideo(url)) {
+                        <video 
+                          [src]="url" 
+                          controls 
+                          class="w-full h-full object-contain bg-black/5 outline-none"
+                        ></video>
+                      } @else {
+                        <img 
+                          [src]="url" 
+                          class="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity" 
+                        />
+                      }
+                    </div>
+                  }
+                  
+                </div>
+              </div>
+            }
           }
 
           <div class="flex items-center gap-6 pt-3 border-t border-gray-100">
