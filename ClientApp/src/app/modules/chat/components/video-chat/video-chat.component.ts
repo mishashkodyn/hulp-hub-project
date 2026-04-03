@@ -96,7 +96,9 @@ export class VideoChatComponent implements OnInit, OnDestroy {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       const devices = await navigator.mediaDevices.enumerateDevices();
-      this.videoDevices = devices.filter(device => device.kind === 'videoinput');
+      this.videoDevices = devices.filter(
+        (device) => device.kind === 'videoinput',
+      );
       this.hasMultipleCameras = this.videoDevices.length > 1;
     } catch (e) {
       console.error('Camera check failed', e);
@@ -106,15 +108,15 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   async switchCamera() {
     if (!this.hasMultipleCameras) return;
 
-    this.currentCameraIndex = (this.currentCameraIndex + 1) % this.videoDevices.length;
+    this.currentCameraIndex =
+      (this.currentCameraIndex + 1) % this.videoDevices.length;
     const newDevice = this.videoDevices[this.currentCameraIndex];
-    
-    this.isFrontCamera = newDevice.label.toLowerCase().includes('front') || !this.isFrontCamera;
+
+    this.isFrontCamera =
+      newDevice.label.toLowerCase().includes('front') || !this.isFrontCamera;
 
     await this.startLocalStream(newDevice.deviceId);
   }
-
-
 
   createPeerConnection() {
     this.peerConnection = new RTCPeerConnection({
@@ -141,26 +143,36 @@ export class VideoChatComponent implements OnInit, OnDestroy {
   }
 
   async startLocalStream(deviceId?: string) {
-    // Якщо стрім вже є (наприклад, при перемиканні камери), зупиняємо старий
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('Media devices are not available. HTTPS is required.');
+      this.endCallInternal();
+      this.dialogRef.close();
+      return;
+    }
+
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
     }
 
     const constraints: MediaStreamConstraints = {
       audio: true,
-      video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
+      video: deviceId
+        ? { deviceId: { exact: deviceId } }
+        : { facingMode: 'user' },
     };
 
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      
+
       if (this.localVideo) {
         this.localVideo.nativeElement.srcObject = this.localStream;
       }
 
       if (this.peerConnection.signalingState !== 'closed') {
         const videoTrack = this.localStream.getVideoTracks()[0];
-        const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        const sender = this.peerConnection
+          .getSenders()
+          .find((s) => s.track?.kind === 'video');
         if (sender) {
           sender.replaceTrack(videoTrack);
         } else {
