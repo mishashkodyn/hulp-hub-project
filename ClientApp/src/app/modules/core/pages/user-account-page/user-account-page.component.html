@@ -238,6 +238,7 @@
                 <app-posts-user-profile
                   [user]="user"
                   [isOwnProfile]="isOwnProfile"
+                  (mediaSelected)="openMedia($event.url, $event.type)"
                 ></app-posts-user-profile>
               }
 
@@ -251,3 +252,10 @@
     </div>
   </div>
 </ng-container>
+
+@if (activeMedia) {
+  <app-media-player
+    [media]="activeMedia" 
+    (closeViewer)="closeMedia()">
+  </app-media-player>
+}
